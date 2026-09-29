@@ -83,6 +83,7 @@ button { font: inherit; color: inherit; background: none; border: 0; cursor: poi
   font: 600 16px/1.15 var(--display); letter-spacing: -.005em;
 }
 .bar nav small { font: 500 10px/1 var(--display); margin-bottom: 3px; }
+.bar nav small:empty { display: none; }   /* đã bỏ số thứ tự thì chữ menu nằm giữa thanh */
 .bar nav a::after {
   content: ""; position: absolute; left: 0; right: 0; bottom: -1px; height: 3px;
   background: currentColor; transform: scaleX(0); transform-origin: left; transition: transform .35s ease;
