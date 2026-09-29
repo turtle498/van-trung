@@ -31,6 +31,12 @@
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
 html { scroll-behavior: smooth; background: var(--bg); }
+
+/* Cuộn mượt có quán tính (Lenis) */
+html.lenis, html.lenis body { height: auto; }
+.lenis.lenis-smooth { scroll-behavior: auto !important; }
+.lenis.lenis-stopped { overflow: clip; }
+.lenis [data-lenis-prevent] { overscroll-behavior: contain; }
 body {
   background: var(--bg); color: var(--ink);
   font-family: var(--body); font-size: 17px; line-height: 1.7; font-weight: 400;

@@ -1,6 +1,26 @@
 (() => {
   const $ = s => document.querySelector(s);
 
+  /* ---------- Cuộn mượt có quán tính như video mẫu (Lenis) ----------
+     Chỉ áp cho chuột/bàn di; cảm ứng giữ cuộn gốc của máy. Không tải được thư viện thì dùng cuộn thường. */
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const lenis = window.Lenis && !reduce
+    ? new Lenis({ lerp: 0.085, wheelMultiplier: 0.95, autoRaf: true })
+    : null;
+
+  // link neo (#du-an-01, #lien-he, #top…) trượt êm tới nơi; Lenis tự tính scroll-margin-top để chừa chỗ thanh menu
+  if (lenis) {
+    document.addEventListener('click', e => {
+      const a = e.target.closest('a[href^="#"]');
+      if (!a || a.getAttribute('href') === '#') return;
+      const target = document.querySelector(a.getAttribute('href'));
+      if (!target) return;
+      e.preventDefault();
+      lenis.scrollTo(target, { duration: 1.6, easing: t => 1 - Math.pow(1 - t, 4) });
+      history.replaceState(null, '', a.getAttribute('href'));
+    });
+  }
+
   /* ---------- Thanh tiến trình đọc ---------- */
   const bar = $('#progress');
   const setProgress = () => {
@@ -97,6 +117,7 @@
     lb.setAttribute('aria-hidden', 'false');
     document.documentElement.style.overflow = 'hidden';
     document.body.classList.add('lb-open');
+    lenis && lenis.stop();
     $('#lbClose').focus();
   }
   function close() {
@@ -104,6 +125,7 @@
     lb.setAttribute('aria-hidden', 'true');
     document.documentElement.style.overflow = '';
     document.body.classList.remove('lb-open');
+    lenis && lenis.start();
     lastFocus && lastFocus.focus({ preventScroll: true });
   }
   const next = () => show(idx + 1);
