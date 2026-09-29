@@ -22,7 +22,7 @@
   --inset: clamp(28px, 5.4vw, 80px);
   --padl: calc(var(--fx) + var(--rail) + var(--inset));
   --padr: calc(var(--fx) + 1px);
-  --stick: calc(var(--fx) + var(--barh) + 16px);
+  --stick: calc(var(--fx) + var(--barh));   /* = mép dưới thanh menu */
   --cols: minmax(0, 3.3fr) minmax(0, 3fr) minmax(0, 4.3fr) minmax(0, 1.4fr);
 
   --display: "Inter Tight", "Be Vietnam Pro", system-ui, sans-serif;
@@ -118,7 +118,8 @@ main { padding-left: var(--padl); padding-right: var(--padr); }
 .toc a:hover em { color: var(--moss); }
 
 /* Mỗi dự án */
-.work { padding-bottom: clamp(110px, 12vw, 170px); scroll-margin-top: calc(var(--stick) - 4px); }
+/* gạch đầu mỗi dự án dừng sát mép dưới thanh menu */
+.work { padding-bottom: clamp(110px, 12vw, 170px); scroll-margin-top: var(--stick); }
 .num-col { grid-column: 1; grid-row: 1 / span 3; }
 .num {
   position: sticky; top: var(--stick);

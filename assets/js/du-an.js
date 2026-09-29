@@ -21,6 +21,33 @@
     });
   }
 
+  /* ---------- Tự dừng đúng mép dưới thanh menu khi cuộn tới đầu một dự án ----------
+     Chỉ hít khi đầu dự án đã ở gần (trong ~1/4 màn hình) và người dùng vừa dừng lăn chuột;
+     cuộn xa vẫn tự do để đọc hết ảnh trong dự án dài. */
+  if (lenis) {
+    const works = [...document.querySelectorAll('.work')];
+    const barEl = document.querySelector('.bar');
+    let lastWheel = 0, idle = 0;
+    addEventListener('wheel', () => { lastWheel = performance.now(); }, { passive: true });
+    lenis.on('scroll', () => {
+      clearTimeout(idle);
+      idle = setTimeout(snap, 120);
+    });
+    function snap() {
+      if (performance.now() - lastWheel > 1600) return;      // chỉ sau khi lăn chuột, không can thiệp link neo
+      if (document.body.classList.contains('lb-open')) return;
+      const line = barEl.getBoundingClientRect().bottom;
+      const range = Math.min(innerHeight * 0.25, 240);
+      let best = null, bestD = Infinity;
+      for (const w of works) {
+        const d = w.getBoundingClientRect().top - line;
+        if (Math.abs(d) < Math.abs(bestD)) { bestD = d; best = w; }
+      }
+      if (!best || Math.abs(bestD) < 1.5 || Math.abs(bestD) > range) return;
+      lenis.scrollTo(best, { duration: 0.8, easing: t => 1 - Math.pow(1 - t, 3) });
+    }
+  }
+
   /* ---------- Thanh tiến trình đọc ---------- */
   const bar = $('#progress');
   const setProgress = () => {
