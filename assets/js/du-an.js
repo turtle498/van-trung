@@ -16,35 +16,35 @@
       const target = document.querySelector(a.getAttribute('href'));
       if (!target) return;
       e.preventDefault();
-      lenis.scrollTo(target, { duration: 1.6, easing: t => 1 - Math.pow(1 - t, 4) });
+      lenis.scrollTo(target, { duration: 1, easing: t => 1 - Math.pow(1 - t, 4) });
       history.replaceState(null, '', a.getAttribute('href'));
     });
   }
 
   /* ---------- Tự dừng đúng mép dưới thanh menu khi cuộn tới đầu một dự án ----------
-     Chỉ hít khi đầu dự án đã ở gần (trong ~1/4 màn hình) và người dùng vừa dừng lăn chuột;
-     cuộn xa vẫn tự do để đọc hết ảnh trong dự án dài. */
+     Vừa dừng tay lăn chuột là tính luôn điểm trang sẽ trôi tới; nếu điểm đó gần đầu một dự án
+     (trong ~1/4 màn hình) thì trượt thẳng vào vị trí, không đợi quán tính trôi hết.
+     Cuộn xa vẫn tự do để đọc hết ảnh trong dự án dài. */
   if (lenis) {
+    const SNAP_WAIT = 90;       // ms sau nấc lăn cuối cùng
+    const SNAP_TIME = 0.45;     // giây trượt vào vị trí
     const works = [...document.querySelectorAll('.work')];
     const barEl = document.querySelector('.bar');
-    let lastWheel = 0, idle = 0;
-    addEventListener('wheel', () => { lastWheel = performance.now(); }, { passive: true });
-    lenis.on('scroll', () => {
-      clearTimeout(idle);
-      idle = setTimeout(snap, 120);
-    });
+    let wait = 0;
+    addEventListener('wheel', () => { clearTimeout(wait); wait = setTimeout(snap, SNAP_WAIT); }, { passive: true });
     function snap() {
-      if (performance.now() - lastWheel > 1600) return;      // chỉ sau khi lăn chuột, không can thiệp link neo
       if (document.body.classList.contains('lb-open')) return;
       const line = barEl.getBoundingClientRect().bottom;
+      const ahead = lenis.targetScroll - lenis.animatedScroll;   // quãng quán tính còn lại
       const range = Math.min(innerHeight * 0.25, 240);
       let best = null, bestD = Infinity;
       for (const w of works) {
-        const d = w.getBoundingClientRect().top - line;
+        const d = w.getBoundingClientRect().top - line - ahead;  // vị trí đầu dự án lúc trang dừng
         if (Math.abs(d) < Math.abs(bestD)) { bestD = d; best = w; }
       }
-      if (!best || Math.abs(bestD) < 1.5 || Math.abs(bestD) > range) return;
-      lenis.scrollTo(best, { duration: 0.8, easing: t => 1 - Math.pow(1 - t, 3) });
+      if (!best || Math.abs(bestD) > range) return;
+      if (Math.abs(bestD) < 1.5 && Math.abs(ahead) < 1.5) return;
+      lenis.scrollTo(best, { duration: SNAP_TIME, easing: t => 1 - Math.pow(1 - t, 3) });
     }
   }
 
