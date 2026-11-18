@@ -1,0 +1,206 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex,nofollow">
+<title>Chỉnh sửa website</title>
+<style>
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;color:#1c1c1e;background:#f3f4f6}
+  button{font:inherit;cursor:pointer}
+  [hidden]{display:none!important}
+
+  #login{min-height:100%;display:grid;place-items:center;padding:24px}
+  .card{background:#fff;border-radius:14px;padding:32px 28px;width:100%;max-width:380px;box-shadow:0 8px 30px rgba(0,0,0,.08)}
+  .card h1{font-size:20px;margin:0 0 4px}
+  .card p{margin:0 0 18px;color:#666}
+  .card input{width:100%;padding:12px 14px;border:1px solid #d0d4da;border-radius:10px;font:inherit;margin-bottom:12px}
+  .card input:focus{outline:2px solid #2463eb;border-color:transparent}
+  .btn{background:#2463eb;color:#fff;border:0;border-radius:10px;padding:11px 18px;font-weight:600}
+  .btn:disabled{background:#b8c4dd;cursor:not-allowed}
+  .btn.full{width:100%}
+  .err{color:#c0262d;margin:10px 0 0;min-height:1.4em;font-size:14px}
+
+  #app{height:100%;display:flex;flex-direction:column}
+  .bar{display:flex;align-items:center;gap:12px;padding:10px 16px;background:#fff;border-bottom:1px solid #e3e5e8;flex-wrap:wrap}
+  .bar strong{font-size:16px;margin-right:4px}
+  .tabs{display:flex;gap:4px;background:#eef0f3;border-radius:10px;padding:3px}
+  .tab{border:0;background:transparent;padding:7px 14px;border-radius:8px;color:#444}
+  .tab[aria-selected=true]{background:#fff;color:#111;font-weight:600;box-shadow:0 1px 3px rgba(0,0,0,.12)}
+  .sp{flex:1}
+  #status{color:#555;font-size:14px}
+  #status.ok{color:#15803d}
+  .link{background:none;border:0;color:#2463eb;text-decoration:underline;padding:6px;font-size:14px}
+  a.link{display:inline-block}
+  #hint{display:flex;align-items:center;gap:12px;background:#eaf1ff;color:#1e3a8a;padding:8px 16px;font-size:14px}
+  #hint span{flex:1}
+  #hint button{background:none;border:0;font-size:18px;color:#1e3a8a;line-height:1}
+  iframe{flex:1;width:100%;border:0;background:#fff}
+</style>
+</head>
+<body>
+
+<div id="login">
+  <form class="card" id="loginForm">
+    <h1>Chỉnh sửa website</h1>
+    <p>Nhập mật khẩu để vào chỉnh sửa.</p>
+    <input type="password" id="pw" placeholder="Mật khẩu" autocomplete="current-password" autofocus>
+    <button class="btn full" id="loginBtn" type="submit">Vào chỉnh sửa</button>
+    <div class="err" id="loginErr"></div>
+  </form>
+</div>
+
+<div id="app" hidden>
+  <div class="bar">
+    <strong>Chỉnh sửa web</strong>
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" data-page="home" aria-selected="true">Trang chủ</button>
+      <button class="tab" role="tab" data-page="du-an" aria-selected="false">Trang Dự án</button>
+    </div>
+    <span class="sp"></span>
+    <span id="status"></span>
+    <a class="link" href="index.html" target="_blank" rel="noopener">Xem web</a>
+    <button class="link" id="logout" type="button">Thoát</button>
+    <button class="btn" id="save" type="button" disabled>Lưu thay đổi</button>
+  </div>
+  <div id="hint">
+    <span><b>Cách dùng:</b> bấm vào chữ để gõ sửa · bấm vào ảnh để đổi ảnh từ máy tính · sửa xong nhớ bấm <b>Lưu thay đổi</b>. Web thật sẽ cập nhật sau khoảng 1–2 phút.</span>
+    <button type="button" id="hintClose" aria-label="Đóng">×</button>
+  </div>
+  <iframe id="frame" title="Trang đang chỉnh sửa"></iframe>
+</div>
+
+<script>
+/* >>> SAU KHI TẠO CLOUDFLARE WORKER, DÁN LINK WORKER VÀO GIỮA HAI DẤU NHÁY BÊN DƯỚI <<<
+   Ví dụ: 'https://van-trung-admin.ten-ban.workers.dev'  (không có dấu / ở cuối) */
+var WORKER_URL = 'DAN_LINK_WORKER_VAO_DAY';
+
+var PAGES = { 'home': 'index.html', 'du-an': 'du-an.html' };
+window.cmsStore = {
+  'home':  { texts: {}, images: {}, saved: {} },
+  'du-an': { texts: {}, images: {}, saved: {} }
+};
+window.cmsContent = null;
+
+var $ = function (id) { return document.getElementById(id); };
+var frame = $('frame'), saveBtn = $('save'), statusEl = $('status');
+var current = 'home', password = sessionStorage.getItem('cms_pw') || '';
+
+function api(path, opts) {
+  opts = opts || {};
+  opts.headers = Object.assign({ 'Authorization': 'Bearer ' + password }, opts.headers || {});
+  return fetch(WORKER_URL + path, opts).then(function (r) {
+    return r.json().catch(function () { return {}; }).then(function (j) {
+      if (!r.ok) { var e = new Error(j.error || ('Lỗi ' + r.status)); e.status = r.status; throw e; }
+      return j;
+    });
+  });
+}
+
+function countChanges() {
+  var n = 0;
+  for (var p in cmsStore) n += Object.keys(cmsStore[p].texts).length + Object.keys(cmsStore[p].images).length;
+  return n;
+}
+window.cmsChanged = function () {
+  var n = countChanges();
+  saveBtn.disabled = n === 0;
+  saveBtn.textContent = n ? 'Lưu thay đổi (' + n + ')' : 'Lưu thay đổi';
+  if (n) { statusEl.className = ''; statusEl.textContent = 'Có thay đổi chưa lưu'; }
+};
+
+function showTab(id) {
+  current = id;
+  document.querySelectorAll('.tab').forEach(function (t) { t.setAttribute('aria-selected', t.dataset.page === id ? 'true' : 'false'); });
+  frame.src = PAGES[id] + '?edit=1';
+}
+document.querySelectorAll('.tab').forEach(function (t) {
+  t.addEventListener('click', function () { if (t.dataset.page !== current) showTab(t.dataset.page); });
+});
+
+function enter(content) {
+  cmsContent = content;
+  $('login').hidden = true; $('app').hidden = false;
+  if (localStorage.getItem('cms_hint_off')) $('hint').hidden = true;
+  showTab('home');
+}
+
+$('loginForm').addEventListener('submit', function (ev) {
+  ev.preventDefault();
+  var err = $('loginErr'); err.textContent = '';
+  if (/DAN_LINK/.test(WORKER_URL)) { err.textContent = 'Chưa cấu hình link Worker trong admin.html.'; return; }
+  password = $('pw').value;
+  if (!password) return;
+  $('loginBtn').disabled = true; $('loginBtn').textContent = 'Đang kiểm tra…';
+  api('/api/content').then(function (c) {
+    sessionStorage.setItem('cms_pw', password); enter(c);
+  }).catch(function (e) {
+    err.textContent = e.status === 401 ? 'Sai mật khẩu.' : (e.message === 'Failed to fetch' ? 'Không kết nối được tới máy chủ. Kiểm tra lại link Worker.' : e.message);
+  }).then(function () { $('loginBtn').disabled = false; $('loginBtn').textContent = 'Vào chỉnh sửa'; });
+});
+
+$('logout').addEventListener('click', function () {
+  if (countChanges() && !confirm('Còn thay đổi chưa lưu. Thoát thật không?')) return;
+  sessionStorage.removeItem('cms_pw'); window.onbeforeunload = null; location.reload();
+});
+$('hintClose').addEventListener('click', function () { $('hint').hidden = true; localStorage.setItem('cms_hint_off', '1'); });
+
+window.onbeforeunload = function () { if (countChanges()) return 'Còn thay đổi chưa lưu.'; };
+
+function uploadImage(dataUrl) {
+  return api('/api/image', { method: 'POST', headers: { 'Content-Type': 'text/plain' }, body: dataUrl.split(',')[1] }).then(function (j) { return j.path; });
+}
+
+saveBtn.addEventListener('click', function () {
+  var imgCount = 0;
+  for (var p in cmsStore) imgCount += Object.keys(cmsStore[p].images).length;
+  if (imgCount > 15) { alert('Bạn đang đổi ' + imgCount + ' ảnh cùng lúc. Hãy bấm Lưu khi đã đổi khoảng 10 ảnh, rồi đổi tiếp.'); return; }
+
+  saveBtn.disabled = true; statusEl.className = ''; statusEl.textContent = 'Đang lưu…';
+  var files = {}, uploaded = {}, chain = Promise.resolve();
+
+  Object.keys(cmsStore).forEach(function (page) {
+    var s = cmsStore[page];
+    if (!Object.keys(s.texts).length && !Object.keys(s.images).length) return;
+    files[page] = { texts: Object.assign({}, s.texts), images: {} };
+    Object.keys(s.images).forEach(function (k) {
+      chain = chain.then(function () {
+        statusEl.textContent = 'Đang tải ảnh lên…';
+        return uploadImage(s.images[k]).then(function (path) { files[page].images[k] = path; });
+      });
+    });
+  });
+
+  chain.then(function () {
+    statusEl.textContent = 'Đang lưu nội dung…';
+    return api('/api/save', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ files: files }) });
+  }).then(function (res) {
+    cmsContent = res.content;
+    Object.keys(files).forEach(function (page) {
+      var s = cmsStore[page];
+      Object.keys(s.images).forEach(function (k) { s.saved[k] = s.images[k]; });
+      s.texts = {}; s.images = {};
+    });
+    cmsChanged();
+    var d = new Date(), hh = ('0' + d.getHours()).slice(-2) + ':' + ('0' + d.getMinutes()).slice(-2);
+    statusEl.className = 'ok'; statusEl.textContent = '✓ Đã lưu lúc ' + hh + ' — web thật cập nhật sau 1–2 phút';
+    var y = 0; try { y = frame.contentWindow.scrollY || 0; } catch (e) {}
+    frame.onload = function () { setTimeout(function () { try { frame.contentWindow.scrollTo(0, y); } catch (e) {} }, 700); frame.onload = null; };
+    frame.contentWindow.location.reload();
+  }).catch(function (e) {
+    statusEl.className = ''; statusEl.textContent = '';
+    if (e.status === 401) { alert('Phiên đăng nhập hết hạn. Vui lòng tải lại trang và nhập lại mật khẩu.'); }
+    else alert('Lưu chưa được: ' + e.message + '\nCác chỉnh sửa của bạn vẫn còn, hãy thử bấm Lưu lại.');
+    cmsChanged();
+  });
+});
+
+// tự đăng nhập lại nếu tab vẫn còn mật khẩu
+if (password && !/DAN_LINK/.test(WORKER_URL)) {
+  api('/api/content').then(enter).catch(function () { sessionStorage.removeItem('cms_pw'); });
+}
+</script>
+</body>
+</html>
