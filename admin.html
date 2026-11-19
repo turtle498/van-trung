@@ -73,9 +73,8 @@
 </div>
 
 <script>
-/* >>> SAU KHI TẠO CLOUDFLARE WORKER, DÁN LINK WORKER VÀO GIỮA HAI DẤU NHÁY BÊN DƯỚI <<<
-   Ví dụ: 'https://van-trung-admin.ten-ban.workers.dev'  (không có dấu / ở cuối) */
-var WORKER_URL = 'DAN_LINK_WORKER_VAO_DAY';
+/* Trang admin và cầu nối /api nằm cùng một Worker nên không cần cấu hình gì thêm. */
+var WORKER_URL = '';
 
 var PAGES = { 'home': 'index.html', 'du-an': 'du-an.html' };
 window.cmsStore = {
@@ -130,7 +129,6 @@ function enter(content) {
 $('loginForm').addEventListener('submit', function (ev) {
   ev.preventDefault();
   var err = $('loginErr'); err.textContent = '';
-  if (/DAN_LINK/.test(WORKER_URL)) { err.textContent = 'Chưa cấu hình link Worker trong admin.html.'; return; }
   password = $('pw').value;
   if (!password) return;
   $('loginBtn').disabled = true; $('loginBtn').textContent = 'Đang kiểm tra…';
@@ -198,7 +196,7 @@ saveBtn.addEventListener('click', function () {
 });
 
 // tự đăng nhập lại nếu tab vẫn còn mật khẩu
-if (password && !/DAN_LINK/.test(WORKER_URL)) {
+if (password) {
   api('/api/content').then(enter).catch(function () { sessionStorage.removeItem('cms_pw'); });
 }
 </script>
