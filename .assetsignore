@@ -1,0 +1,9 @@
+worker.js
+wrangler.jsonc
+.assetsignore
+.pages.yml
+cloudflare
+.wrangler
+node_modules
+.git
+.gitignore
